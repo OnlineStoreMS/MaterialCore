@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Edit, Search, Iphone } from '@element-plus/icons-vue'
+import { Plus, Delete, Edit, Search, Iphone, Download } from '@element-plus/icons-vue'
 import MediaUploadField from '../components/MediaUploadField.vue'
 import type { MediaItem } from '../api/upload'
 import {
@@ -210,6 +210,57 @@ function copyUrl(url: string) {
   )
 }
 
+function guessFilename(m: Material): string {
+  if (m.fileName?.trim()) return m.fileName.trim()
+  try {
+    const path = new URL(m.url).pathname
+    const base = path.split('/').pop()
+    if (base) return decodeURIComponent(base)
+  } catch {
+    /* ignore */
+  }
+  const ext = m.mediaType === 'video' ? 'mp4' : 'jpg'
+  return `${m.title || 'material'}_${m.id}.${ext}`
+}
+
+async function downloadOne(m: Material) {
+  const name = guessFilename(m)
+  try {
+    const res = await fetch(m.url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const href = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = href
+    a.download = name
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(href)
+    ElMessage.success('已开始下载')
+  } catch {
+    // 跨域无法 blob 时回退为新窗口打开，由浏览器自行保存
+    const a = document.createElement('a')
+    a.href = m.url
+    a.download = name
+    a.target = '_blank'
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    ElMessage.success('已打开文件，请另存为')
+  }
+}
+
+async function downloadSelected() {
+  if (!selectedIds.value.length) return
+  const list = materials.value.filter((m) => selectedIds.value.includes(m.id))
+  for (const m of list) {
+    await downloadOne(m)
+  }
+}
+
 watch(
   () => [query.keyword, query.mediaType, query.hasProduct],
   () => {
@@ -261,6 +312,9 @@ onMounted(async () => {
         </el-select>
         <el-button type="primary" @click="loadMaterials">查询</el-button>
         <div class="spacer" />
+        <el-button :disabled="!selectedIds.length" plain :icon="Download" @click="downloadSelected">
+          批量下载
+        </el-button>
         <el-button :disabled="!selectedIds.length" type="danger" plain :icon="Delete" @click="removeSelected">
           批量删除
         </el-button>
@@ -290,6 +344,7 @@ onMounted(async () => {
           </div>
           <div class="ops" @click.stop>
             <el-button text type="primary" size="small" @click="copyUrl(m.url)">复制链接</el-button>
+            <el-button text type="primary" size="small" :icon="Download" @click="downloadOne(m)">下载</el-button>
             <el-button text size="small" :icon="Edit" @click="openEdit(m)" />
             <el-button text type="danger" size="small" :icon="Delete" @click="removeOne(m)" />
           </div>
@@ -414,7 +469,10 @@ a.thumb.video {
   font-size: 13px; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .sub { font-size: 12px; color: #909399; margin-top: 2px; }
-.ops { display: flex; align-items: center; padding: 4px 4px 8px; }
+.ops {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+  padding: 4px 4px 8px;
+}
 .pager { display: flex; justify-content: flex-end; }
 .hint { margin-top: 6px; font-size: 12px; color: #909399; display: flex; align-items: center; gap: 4px; }
 </style>
