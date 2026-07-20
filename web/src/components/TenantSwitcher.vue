@@ -8,7 +8,10 @@ const switching = ref(false)
 
 const show = computed(() => {
   const session = sessionStore.session
-  return session?.user.isPlatform && (session.tenants?.length ?? 0) >= 1
+  if (!session) return false
+  const n = session.tenants?.length ?? 0
+  if (session.user.isPlatform) return n >= 1
+  return n > 1
 })
 
 async function onChange(tenantId: number) {

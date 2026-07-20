@@ -103,6 +103,7 @@ const breadcrumbs = computed(() => {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
 .user-trigger {
   display: flex;
