@@ -71,6 +71,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Database.Driver == "" {
 		cfg.Database.Driver = "postgres"
 	}
+	if cfg.Database.PostgresDSN == "" {
+		cfg.Database.PostgresDSN = "host=127.0.0.1 user=materialcore password=materialcore dbname=materialcore port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	}
 	if cfg.Database.SQLitePath == "" {
 		cfg.Database.SQLitePath = "./data/materialcore.db"
 	}

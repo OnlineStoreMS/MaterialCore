@@ -5,14 +5,14 @@ server:
 database:
   driver: postgres
   # 本地开发建议 host=127.0.0.1；部署由 deploy/scripts/sync-configs.sh 写入
-  postgres_dsn: "host=127.0.0.1 user=materialcore password=YOUR_PASSWORD dbname=materialcore port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+  postgres_dsn: "host=127.0.0.1 user=materialcore password=materialcore dbname=materialcore port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 
 auth:
   enabled: true
   jwt_secret: "与 UserCore 一致"
 
 storage:
-  driver: local                  # local | minio
+  driver: local                  # local | minio（部署用 minio，见 deploy/configs/materialcore.yaml）
   prefix: "uploads"
   local_path: "./data/uploads"
   public_base_url: "http://127.0.0.1:8101/uploads"

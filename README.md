@@ -19,11 +19,19 @@ MaterialCore 是 **OSMS** 平台下的素材中心：管理商品宣传用图片
 
 ```bash
 cp configs/config.example.yaml configs/config.yaml
-# 编辑 postgres_dsn / jwt_secret；开发可用 sqlite（见 configs/config.yaml 示例）
+# 编辑 postgres_dsn / jwt_secret（与平台其他 Core 一样使用 PostgreSQL）
 
 go run ./cmd/api -config configs/config.yaml
 
 cd web && npm i && npm run dev
+```
+
+首次需在 PostgreSQL 创建库/用户（或走平台）：
+
+```bash
+cd ~/projects/deploy
+./scripts/init-external-db.sh   # 含 materialcore
+./scripts/init-external-minio.sh  # 含 materialcore bucket（生产 MinIO）
 ```
 
 默认分类种子（租户首次访问分类列表时写入）：询盘快发 / 预期效果 / 宣传海报 / 带货短视频 / 未分类（系统保留，不可删）。
