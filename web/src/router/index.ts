@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminLayout from '../layouts/AdminLayout.vue'
-import { getToken, redirectToPortal, ensureSession, clearToken } from '../utils/auth'
+import {redirectToPortal, ensureSession, clearToken} from '../utils/auth'
 
 const APP_TITLE = 'MaterialCore - 素材中心'
 
@@ -41,10 +41,6 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   if (to.meta.public) return true
-  if (!getToken()) {
-    redirectToPortal()
-    return false
-  }
   const ok = await ensureSession()
   if (!ok) {
     clearToken()
