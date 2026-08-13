@@ -34,7 +34,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	}
 
 	repos := repo.New(db)
-	svc := service.NewMaterialService(repos)
+	svc := service.NewMaterialService(repos, store)
 	h := admin.NewHandlers(svc)
 	exportH := admin.NewExportHandler(svc)
 	uploadH := admin.NewUploadHandler(store)

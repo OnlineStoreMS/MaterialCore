@@ -9,16 +9,18 @@ import (
 	"materialcore/internal/dto"
 	"materialcore/internal/model"
 	"materialcore/internal/repo"
+	"materialcore/internal/storage"
 
 	"gorm.io/gorm"
 )
 
 type MaterialService struct {
 	repos *repo.Repos
+	store storage.Storage
 }
 
-func NewMaterialService(repos *repo.Repos) *MaterialService {
-	return &MaterialService{repos: repos}
+func NewMaterialService(repos *repo.Repos, store storage.Storage) *MaterialService {
+	return &MaterialService{repos: repos, store: store}
 }
 
 func (s *MaterialService) ListCategories(tenantID uint64) ([]dto.CategoryNode, error) {
@@ -246,10 +248,15 @@ func decodeTags(raw string) []string {
 	return tags
 }
 
-func toMaterialDTO(m *model.Material) dto.MaterialDTO {
+func (s *MaterialService) toMaterialDTO(m *model.Material) dto.MaterialDTO {
+	url, cover := m.URL, m.CoverURL
+	if s.store != nil {
+		url = s.store.ResolvePublicURL(url)
+		cover = s.store.ResolvePublicURL(cover)
+	}
 	return dto.MaterialDTO{
 		ID: m.ID, CategoryID: m.CategoryID, Title: m.Title, MediaType: m.MediaType,
-		URL: m.URL, CoverURL: m.CoverURL, FileName: m.FileName, Mime: m.Mime,
+		URL: url, CoverURL: cover, FileName: m.FileName, Mime: m.Mime,
 		SizeBytes: m.SizeBytes, DurationMs: m.DurationMs, Width: m.Width, Height: m.Height,
 		Tags: decodeTags(m.TagsJSON), Remark: m.Remark, ProductID: m.ProductID, ProductSn: m.ProductSn,
 		Sort: m.Sort, Status: m.Status, CreatedBy: m.CreatedBy,
@@ -319,7 +326,7 @@ func (s *MaterialService) CreateMaterial(tenantID, userID uint64, req dto.Materi
 	if err := s.repos.Material.Create(row); err != nil {
 		return nil, err
 	}
-	d := toMaterialDTO(row)
+	d := s.toMaterialDTO(row)
 	return &d, nil
 }
 
@@ -371,7 +378,7 @@ func (s *MaterialService) UpdateMaterial(tenantID, id uint64, req dto.MaterialUp
 	if err := s.repos.Material.Update(row); err != nil {
 		return nil, err
 	}
-	d := toMaterialDTO(row)
+	d := s.toMaterialDTO(row)
 	return &d, nil
 }
 
@@ -383,7 +390,7 @@ func (s *MaterialService) GetMaterial(tenantID, id uint64) (*dto.MaterialDTO, er
 		}
 		return nil, err
 	}
-	d := toMaterialDTO(row)
+	d := s.toMaterialDTO(row)
 	return &d, nil
 }
 
@@ -421,13 +428,23 @@ func (s *MaterialService) ListMaterials(tenantID uint64, q dto.MaterialListQuery
 	}
 	out := make([]dto.MaterialDTO, 0, len(list))
 	for i := range list {
-		out = append(out, toMaterialDTO(&list[i]))
+		out = append(out, s.toMaterialDTO(&list[i]))
 	}
 	return out, total, nil
 }
 
 func (s *MaterialService) ListMaterialsByIDs(tenantID uint64, ids []uint64) ([]model.Material, error) {
-	return s.repos.Material.GetByIDs(tenantID, ids)
+	list, err := s.repos.Material.GetByIDs(tenantID, ids)
+	if err != nil {
+		return nil, err
+	}
+	if s.store != nil {
+		for i := range list {
+			list[i].URL = s.store.ResolvePublicURL(list[i].URL)
+			list[i].CoverURL = s.store.ResolvePublicURL(list[i].CoverURL)
+		}
+	}
+	return list, nil
 }
 
 func (s *MaterialService) DashboardStats(tenantID uint64) (*dto.DashboardStats, error) {
