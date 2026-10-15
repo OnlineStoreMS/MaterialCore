@@ -16,6 +16,7 @@ import (
 
 type Storage interface {
 	Upload(file *multipart.FileHeader, subdir string) (string, error)
+	UploadBytes(data []byte, filename, contentType, subdir string) (string, error)
 	ResolvePublicURL(stored string) string
 }
 
@@ -59,6 +60,25 @@ func (s *LocalStorage) Upload(file *multipart.FileHeader, subdir string) (string
 	}
 	defer dst.Close()
 	if _, err := io.Copy(dst, src); err != nil {
+		return "", err
+	}
+	urlPath := strings.ReplaceAll(filepath.Join(s.prefix, rel), "\\", "/")
+	return s.baseURL + "/" + urlPath, nil
+}
+
+func (s *LocalStorage) UploadBytes(data []byte, filename, contentType, subdir string) (string, error) {
+	_ = contentType
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	name := fmt.Sprintf("%s_%s%s", time.Now().Format("20060102150405"), uuid.New().String()[:8], ext)
+	rel := filepath.Join(subdir, name)
+	destPath := filepath.Join(s.baseDir, rel)
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(destPath, data, 0o644); err != nil {
 		return "", err
 	}
 	urlPath := strings.ReplaceAll(filepath.Join(s.prefix, rel), "\\", "/")

@@ -126,7 +126,13 @@ export async function updateMaterial(
   body: Partial<{
     categoryId: number
     title: string
+    url: string
     coverUrl: string
+    fileName: string
+    mime: string
+    sizeBytes: number
+    width: number
+    height: number
     tags: string[]
     remark: string
     productId: number | null
@@ -136,6 +142,46 @@ export async function updateMaterial(
   }>,
 ): Promise<Material> {
   const res = await client.put(`/materials/${id}`, body)
+  return unwrap(res)
+}
+
+/** 旋转并重写图片像素（degrees: 0=EXIF纠正，90/-90/180） */
+export async function rotateMaterial(id: number, degrees: number): Promise<Material> {
+  const res = await client.post(`/materials/${id}/rotate`, { degrees }, { timeout: 120000 })
+  return unwrap(res)
+}
+
+export type WatermarkPosition =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'center'
+  | 'top-center'
+  | 'bottom-center'
+  | 'custom'
+
+export interface WatermarkPayload {
+  ids: number[]
+  logoUrl: string
+  position: WatermarkPosition
+  offsetX?: number
+  offsetY?: number
+  margin?: number
+  scale?: number
+  opacity?: number
+}
+
+export interface WatermarkResult {
+  ok: number
+  fail: number
+  success: Material[]
+  failed: { id: number; error: string }[]
+}
+
+/** 批量/单张叠加水印（文字请先渲染为透明 PNG 再作为 logoUrl） */
+export async function watermarkMaterials(body: WatermarkPayload): Promise<WatermarkResult> {
+  const res = await client.post('/materials/watermark', body, { timeout: 300000 })
   return unwrap(res)
 }
 

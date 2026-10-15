@@ -163,6 +163,35 @@ func (h *Handlers) UpdateMaterial(c *gin.Context) {
 	response.OK(c, m)
 }
 
+func (h *Handlers) RotateMaterial(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	var req dto.MaterialRotateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	m, err := h.svc.RotateMaterial(authcontext.TenantID(c), id, req.Degrees)
+	if err != nil {
+		h.mapError(c, err)
+		return
+	}
+	response.OK(c, m)
+}
+
+func (h *Handlers) WatermarkMaterials(c *gin.Context) {
+	var req dto.MaterialWatermarkReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	res, err := h.svc.WatermarkMaterials(authcontext.TenantID(c), req)
+	if err != nil {
+		h.mapError(c, err)
+		return
+	}
+	response.OK(c, res)
+}
+
 func (h *Handlers) DeleteMaterial(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err := h.svc.DeleteMaterials(authcontext.TenantID(c), []uint64{id}); err != nil {

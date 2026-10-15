@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -127,6 +128,30 @@ func (s *MinIOStorage) Upload(file *multipart.FileHeader, subdir string) (string
 	}
 
 	_, err = s.client.PutObject(context.Background(), s.bucket, objectKey, src, file.Size, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return "", err
+	}
+	return s.baseURL + "/" + objectKey, nil
+}
+
+func (s *MinIOStorage) UploadBytes(data []byte, filename, contentType, subdir string) (string, error) {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	name := fmt.Sprintf("%s_%s%s", time.Now().Format("20060102150405"), uuid.New().String()[:8], ext)
+	subdir = strings.Trim(subdir, "/")
+	objectKey := s.rootPrefix
+	if subdir != "" {
+		objectKey += "/" + subdir
+	}
+	objectKey += "/" + safeFilename(name)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	_, err := s.client.PutObject(context.Background(), s.bucket, objectKey, bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {

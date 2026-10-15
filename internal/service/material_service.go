@@ -352,8 +352,30 @@ func (s *MaterialService) UpdateMaterial(tenantID, id uint64, req dto.MaterialUp
 		}
 		row.Title = t
 	}
+	if req.URL != nil {
+		u := strings.TrimSpace(*req.URL)
+		if u == "" {
+			return nil, ErrBadRequest
+		}
+		row.URL = u
+	}
 	if req.CoverURL != nil {
 		row.CoverURL = strings.TrimSpace(*req.CoverURL)
+	}
+	if req.FileName != nil {
+		row.FileName = strings.TrimSpace(*req.FileName)
+	}
+	if req.Mime != nil {
+		row.Mime = strings.TrimSpace(*req.Mime)
+	}
+	if req.SizeBytes != nil {
+		row.SizeBytes = *req.SizeBytes
+	}
+	if req.Width != nil {
+		row.Width = *req.Width
+	}
+	if req.Height != nil {
+		row.Height = *req.Height
 	}
 	if req.Tags != nil {
 		row.TagsJSON = encodeTags(req.Tags)

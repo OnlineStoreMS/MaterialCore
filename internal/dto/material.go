@@ -80,7 +80,13 @@ type MaterialCreateReq struct {
 type MaterialUpdateReq struct {
 	CategoryID *uint64  `json:"categoryId"`
 	Title      *string  `json:"title"`
+	URL        *string  `json:"url"`
 	CoverURL   *string  `json:"coverUrl"`
+	FileName   *string  `json:"fileName"`
+	Mime       *string  `json:"mime"`
+	SizeBytes  *int64   `json:"sizeBytes"`
+	Width      *int     `json:"width"`
+	Height     *int     `json:"height"`
 	Tags       []string `json:"tags"`
 	Remark     *string  `json:"remark"`
 	ProductID  *uint64  `json:"productId"`
@@ -88,6 +94,42 @@ type MaterialUpdateReq struct {
 	ProductSn  *string  `json:"productSn"`
 	Sort       *int     `json:"sort"`
 	Status     *int     `json:"status"`
+}
+
+// MaterialRotateReq 旋转并重写图片像素后重新入库（清除错误 EXIF 方向）
+type MaterialRotateReq struct {
+	// Degrees: 0=仅按 EXIF 纠正；90/-90/180/270 再旋转（顺时针为正）
+	Degrees int `json:"degrees"`
+}
+
+// MaterialWatermarkReq 批量/单张叠加水印（文字请前端渲染为透明 PNG 作为 logoUrl）
+type MaterialWatermarkReq struct {
+	IDs []uint64 `json:"ids" binding:"required"`
+	// LogoURL 水印图（Logo 或文字渲染图）
+	LogoURL string `json:"logoUrl" binding:"required"`
+	// Position: top-left | top-right | bottom-left | bottom-right | center | top-center | bottom-center | custom
+	Position string `json:"position"`
+	// OffsetX/Y：custom 时为水印左上角相对画布宽高的百分比 0-100
+	OffsetX float64 `json:"offsetX"`
+	OffsetY float64 `json:"offsetY"`
+	// Margin 固定位边距，相对宽/高比例，默认 0.03
+	Margin float64 `json:"margin"`
+	// Scale 水印宽度占原图宽度比例，默认 0.18
+	Scale float64 `json:"scale"`
+	// Opacity 0-1，默认 0.7
+	Opacity float64 `json:"opacity"`
+}
+
+type MaterialWatermarkFail struct {
+	ID    uint64 `json:"id"`
+	Error string `json:"error"`
+}
+
+type MaterialWatermarkResult struct {
+	OK      int                      `json:"ok"`
+	Fail    int                      `json:"fail"`
+	Success []MaterialDTO            `json:"success"`
+	Failed  []MaterialWatermarkFail  `json:"failed"`
 }
 
 type MaterialListQuery struct {

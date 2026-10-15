@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Edit, Search, Iphone, Download } from '@element-plus/icons-vue'
+import { Plus, Delete, Edit, Search, Iphone, Download, RefreshRight, RefreshLeft, Stamp } from '@element-plus/icons-vue'
 import MediaUploadField from '../components/MediaUploadField.vue'
+import WatermarkDialog from '../components/WatermarkDialog.vue'
 import type { MediaItem } from '../api/upload'
 import {
   listCategories,
@@ -11,6 +12,7 @@ import {
   updateMaterial,
   deleteMaterial,
   batchDeleteMaterials,
+  rotateMaterial,
   flattenCategories,
   type CategoryNode,
   type Material,
@@ -51,6 +53,19 @@ const editForm = reactive({
   productSn: '',
   coverUrl: '',
 })
+
+const rotateVisible = ref(false)
+const rotateSaving = ref(false)
+const rotateTarget = ref<Material | null>(null)
+/** 预览累计角度（顺时针为正，与 CSS rotate 一致） */
+const rotateDeg = ref(0)
+
+const watermarkVisible = ref(false)
+const watermarkTargets = ref<Material[]>([])
+
+const selectedImageCount = computed(
+  () => materials.value.filter((m) => selectedIds.value.includes(m.id) && m.mediaType === 'image').length,
+)
 
 const flatCats = computed(() => flattenCategories(categories.value))
 
@@ -173,6 +188,51 @@ async function submitEdit() {
   } catch (e) {
     ElMessage.error((e as Error).message || '保存失败')
   }
+}
+
+function openRotate(m: Material) {
+  if (m.mediaType !== 'image') {
+    ElMessage.warning('仅图片支持旋转')
+    return
+  }
+  rotateTarget.value = m
+  rotateDeg.value = 0
+  rotateVisible.value = true
+}
+
+function nudgeRotate(delta: number) {
+  rotateDeg.value = ((rotateDeg.value + delta) % 360 + 360) % 360
+}
+
+async function submitRotate() {
+  const m = rotateTarget.value
+  if (!m) return
+  rotateSaving.value = true
+  try {
+    // 0 = 仅按 EXIF 纠正写入像素；90/180/270 = 再旋转
+    const degrees = rotateDeg.value
+    await rotateMaterial(m.id, degrees)
+    ElMessage.success(degrees === 0 ? '已按 EXIF 纠正并保存' : '已旋转并保存')
+    rotateVisible.value = false
+    await loadMaterials()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '旋转保存失败')
+  } finally {
+    rotateSaving.value = false
+  }
+}
+
+function openWatermark(targets?: Material[]) {
+  const list = (targets && targets.length
+    ? targets
+    : materials.value.filter((m) => selectedIds.value.includes(m.id))
+  ).filter((m) => m.mediaType === 'image')
+  if (!list.length) {
+    ElMessage.warning('请先选择至少一张图片')
+    return
+  }
+  watermarkTargets.value = list
+  watermarkVisible.value = true
 }
 
 async function removeOne(m: Material) {
@@ -315,6 +375,15 @@ onMounted(async () => {
         <el-button :disabled="!selectedIds.length" plain :icon="Download" @click="downloadSelected">
           批量下载
         </el-button>
+        <el-button
+          :disabled="!selectedImageCount"
+          plain
+          type="warning"
+          :icon="Stamp"
+          @click="openWatermark()"
+        >
+          批量水印{{ selectedImageCount ? ` (${selectedImageCount})` : '' }}
+        </el-button>
         <el-button :disabled="!selectedIds.length" type="danger" plain :icon="Delete" @click="removeSelected">
           批量删除
         </el-button>
@@ -345,6 +414,26 @@ onMounted(async () => {
           <div class="ops" @click.stop>
             <el-button text type="primary" size="small" @click="copyUrl(m.url)">复制链接</el-button>
             <el-button text type="primary" size="small" :icon="Download" @click="downloadOne(m)">下载</el-button>
+            <el-button
+              v-if="m.mediaType === 'image'"
+              text
+              type="primary"
+              size="small"
+              :icon="RefreshRight"
+              @click="openRotate(m)"
+            >
+              旋转
+            </el-button>
+            <el-button
+              v-if="m.mediaType === 'image'"
+              text
+              type="warning"
+              size="small"
+              :icon="Stamp"
+              @click="openWatermark([m])"
+            >
+              水印
+            </el-button>
             <el-button text size="small" :icon="Edit" @click="openEdit(m)" />
             <el-button text type="danger" size="small" :icon="Delete" @click="removeOne(m)" />
           </div>
@@ -431,6 +520,43 @@ onMounted(async () => {
         <el-button type="primary" @click="submitEdit">保存</el-button>
       </template>
     </el-dialog>
+
+    <WatermarkDialog
+      v-model="watermarkVisible"
+      :materials="watermarkTargets"
+      @done="loadMaterials"
+    />
+
+    <el-dialog
+      v-model="rotateVisible"
+      title="旋转图片"
+      width="560px"
+      destroy-on-close
+      :close-on-click-modal="!rotateSaving"
+    >
+      <p class="rotate-hint">
+        保存时会按当前角度重写图片像素并去掉错误的 EXIF 方向信息，各端显示一致。
+        若不点旋转直接保存，则仅按 EXIF 纠正方向。
+      </p>
+      <div class="rotate-preview">
+        <img
+          v-if="rotateTarget"
+          :src="rotateTarget.url"
+          :style="{ transform: `rotate(${rotateDeg}deg)` }"
+          alt="预览"
+        />
+      </div>
+      <div class="rotate-actions">
+        <el-button :icon="RefreshLeft" :disabled="rotateSaving" @click="nudgeRotate(-90)">左转 90°</el-button>
+        <el-button :icon="RefreshRight" :disabled="rotateSaving" @click="nudgeRotate(90)">右转 90°</el-button>
+        <el-button :disabled="rotateSaving || rotateDeg === 0" @click="rotateDeg = 0">重置预览</el-button>
+      </div>
+      <p class="rotate-deg">当前角度：{{ rotateDeg }}°</p>
+      <template #footer>
+        <el-button :disabled="rotateSaving" @click="rotateVisible = false">取消</el-button>
+        <el-button type="primary" :loading="rotateSaving" @click="submitRotate">保存到素材</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -467,6 +593,41 @@ a.thumb.video {
 .meta { padding: 8px 10px 0; }
 .title {
   font-size: 13px; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rotate-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.5;
+}
+.rotate-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  max-height: 420px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.rotate-preview img {
+  max-width: 92%;
+  max-height: 400px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+.rotate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.rotate-deg {
+  text-align: center;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #606266;
 }
 .sub { font-size: 12px; color: #909399; margin-top: 2px; }
 .ops {
