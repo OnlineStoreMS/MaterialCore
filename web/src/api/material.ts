@@ -17,6 +17,7 @@ export interface Material {
   mediaType: 'image' | 'video'
   url: string
   coverUrl: string
+  thumbUrl?: string
   fileName: string
   mime: string
   sizeBytes: number
@@ -191,6 +192,18 @@ export async function deleteMaterial(id: number): Promise<void> {
 
 export async function batchDeleteMaterials(ids: number[]): Promise<void> {
   await client.post('/materials/batch-delete', { ids })
+}
+
+/** 补齐列表缩略图（约 400px），避免网格加载原图卡顿 */
+export async function ensureMaterialThumbs(ids: number[]): Promise<{ ok: number; fail: number }> {
+  const res = await client.post('/materials/ensure-thumbs', { ids }, { timeout: 300000 })
+  return unwrap(res)
+}
+
+/** 列表展示用小图：优先 thumb → cover → 原图 */
+export function materialListSrc(m: Pick<Material, 'thumbUrl' | 'coverUrl' | 'url' | 'mediaType'>): string {
+  if (m.mediaType === 'video') return m.coverUrl || ''
+  return m.thumbUrl || m.coverUrl || m.url || ''
 }
 
 /** flatten category tree for select options */

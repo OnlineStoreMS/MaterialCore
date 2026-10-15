@@ -7,6 +7,8 @@ import { getToken } from '../utils/auth'
 import {
   listCategories,
   listMaterials,
+  ensureMaterialThumbs,
+  materialListSrc,
   flattenCategories,
   type CategoryNode,
   type Material,
@@ -61,6 +63,22 @@ async function load() {
     })
     materials.value = res.list || []
     total.value = res.total || 0
+    const need = materials.value.filter((m) => m.mediaType === 'image' && !m.thumbUrl).map((m) => m.id)
+    if (need.length) {
+      void ensureMaterialThumbs(need).then(async (r) => {
+        if (r.ok > 0) {
+          const again = await listMaterials({
+            categoryId: query.categoryId,
+            includeChildren: true,
+            keyword: query.keyword || undefined,
+            mediaType: query.mediaType || undefined,
+            page: query.page,
+            pageSize: query.pageSize,
+          })
+          materials.value = again.list || []
+        }
+      })
+    }
   } catch (e) {
     ElMessage.error((e as Error).message || '加载失败')
   } finally {
@@ -196,7 +214,13 @@ onMounted(async () => {
         @click="toggle(m)"
       >
         <div class="check" v-if="isSelected(m.id)">✓</div>
-        <el-image v-if="m.mediaType === 'image'" :src="m.url" fit="cover" class="thumb" />
+        <el-image
+          v-if="m.mediaType === 'image'"
+          :src="materialListSrc(m)"
+          fit="cover"
+          class="thumb"
+          lazy
+        />
         <div v-else class="thumb video">▶</div>
         <div class="title">{{ m.title }}</div>
       </div>
@@ -217,7 +241,7 @@ onMounted(async () => {
       <template #header>已选预览</template>
       <div class="preview-list">
         <div v-for="m in selected" :key="m.id" class="preview-item">
-          <el-image v-if="m.mediaType === 'image'" :src="m.url" fit="cover" class="p-thumb" />
+          <el-image v-if="m.mediaType === 'image'" :src="materialListSrc(m)" fit="cover" class="p-thumb" />
           <div v-else class="p-thumb video">视频</div>
           <div class="p-meta">
             <div class="p-title">{{ m.title }}</div>

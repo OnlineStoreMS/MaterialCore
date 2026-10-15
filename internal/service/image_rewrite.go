@@ -72,9 +72,11 @@ func (s *MaterialService) rewriteMaterialImage(row *model.Material, img image.Im
 	row.SizeBytes = int64(len(data))
 	row.Width = b.Dx()
 	row.Height = b.Dy()
+	row.ThumbURL = "" // 原图变更后重生成列表缩略图
 	if err := s.repos.Material.Update(row); err != nil {
 		return nil, err
 	}
+	s.maybeGenerateThumbAsync(row.TenantID, row.ID, row.MediaType, row.CoverURL)
 	d := s.toMaterialDTO(row)
 	return &d, nil
 }

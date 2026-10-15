@@ -178,6 +178,16 @@ func (h *Handlers) RotateMaterial(c *gin.Context) {
 	response.OK(c, m)
 }
 
+func (h *Handlers) EnsureThumbs(c *gin.Context) {
+	var req dto.BatchIDsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	ok, fail := h.svc.EnsureThumbs(authcontext.TenantID(c), req.IDs)
+	response.OK(c, gin.H{"ok": ok, "fail": fail})
+}
+
 func (h *Handlers) WatermarkMaterials(c *gin.Context) {
 	var req dto.MaterialWatermarkReq
 	if err := c.ShouldBindJSON(&req); err != nil {

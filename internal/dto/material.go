@@ -41,6 +41,7 @@ type MaterialDTO struct {
 	MediaType  string   `json:"mediaType"`
 	URL        string   `json:"url"`
 	CoverURL   string   `json:"coverUrl"`
+	ThumbURL   string   `json:"thumbUrl"`
 	FileName   string   `json:"fileName"`
 	Mime       string   `json:"mime"`
 	SizeBytes  int64    `json:"sizeBytes"`

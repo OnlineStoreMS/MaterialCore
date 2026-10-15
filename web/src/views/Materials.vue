@@ -13,6 +13,8 @@ import {
   deleteMaterial,
   batchDeleteMaterials,
   rotateMaterial,
+  ensureMaterialThumbs,
+  materialListSrc,
   flattenCategories,
   type CategoryNode,
   type Material,
@@ -99,10 +101,37 @@ async function loadMaterials() {
     })
     materials.value = res.list || []
     total.value = res.total || 0
+    void ensureThumbsForPage()
   } catch (e) {
     ElMessage.error((e as Error).message || '加载失败')
   } finally {
     loading.value = false
+  }
+}
+
+/** 当前页缺缩略图的图片后台补齐，完成后刷新列表用小图 */
+async function ensureThumbsForPage() {
+  const need = materials.value
+    .filter((m) => m.mediaType === 'image' && !m.thumbUrl)
+    .map((m) => m.id)
+  if (!need.length) return
+  try {
+    const r = await ensureMaterialThumbs(need)
+    if (r.ok > 0) {
+      const res = await listMaterials({
+        categoryId: selectedCatId.value || undefined,
+        includeChildren: true,
+        keyword: query.keyword || undefined,
+        mediaType: query.mediaType || undefined,
+        hasProduct: query.hasProduct || undefined,
+        page: query.page,
+        pageSize: query.pageSize,
+      })
+      materials.value = res.list || []
+      total.value = res.total || 0
+    }
+  } catch {
+    // 缩略图失败不影响浏览（仍显示原图）
   }
 }
 
@@ -399,7 +428,16 @@ onMounted(async () => {
           @click="toggleSelect(m.id)"
         >
           <div class="thumb-wrap">
-            <el-image v-if="m.mediaType === 'image'" :src="m.url" fit="cover" class="thumb" :preview-src-list="[m.url]" preview-teleported @click.stop />
+            <el-image
+              v-if="m.mediaType === 'image'"
+              :src="materialListSrc(m)"
+              fit="cover"
+              class="thumb"
+              lazy
+              :preview-src-list="[m.url]"
+              preview-teleported
+              @click.stop
+            />
             <a v-else :href="m.url" target="_blank" class="thumb video" @click.stop>
               <span>▶ 视频</span>
             </a>

@@ -41,6 +41,7 @@ type Material struct {
 	MediaType  string         `gorm:"size:16;not null;index" json:"mediaType"` // image | video
 	URL        string         `gorm:"size:1024;not null" json:"url"`
 	CoverURL   string         `gorm:"size:1024" json:"coverUrl"`
+	ThumbURL   string         `gorm:"size:1024" json:"thumbUrl"` // 列表缩略图（约 400px）
 	FileName   string         `gorm:"size:256" json:"fileName"`
 	Mime       string         `gorm:"size:128" json:"mime"`
 	SizeBytes  int64          `gorm:"not null;default:0" json:"sizeBytes"`

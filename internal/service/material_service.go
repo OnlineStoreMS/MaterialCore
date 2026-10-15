@@ -249,14 +249,15 @@ func decodeTags(raw string) []string {
 }
 
 func (s *MaterialService) toMaterialDTO(m *model.Material) dto.MaterialDTO {
-	url, cover := m.URL, m.CoverURL
+	url, cover, thumb := m.URL, m.CoverURL, m.ThumbURL
 	if s.store != nil {
 		url = s.store.ResolvePublicURL(url)
 		cover = s.store.ResolvePublicURL(cover)
+		thumb = s.store.ResolvePublicURL(thumb)
 	}
 	return dto.MaterialDTO{
 		ID: m.ID, CategoryID: m.CategoryID, Title: m.Title, MediaType: m.MediaType,
-		URL: url, CoverURL: cover, FileName: m.FileName, Mime: m.Mime,
+		URL: url, CoverURL: cover, ThumbURL: thumb, FileName: m.FileName, Mime: m.Mime,
 		SizeBytes: m.SizeBytes, DurationMs: m.DurationMs, Width: m.Width, Height: m.Height,
 		Tags: decodeTags(m.TagsJSON), Remark: m.Remark, ProductID: m.ProductID, ProductSn: m.ProductSn,
 		Sort: m.Sort, Status: m.Status, CreatedBy: m.CreatedBy,
@@ -326,6 +327,7 @@ func (s *MaterialService) CreateMaterial(tenantID, userID uint64, req dto.Materi
 	if err := s.repos.Material.Create(row); err != nil {
 		return nil, err
 	}
+	s.maybeGenerateThumbAsync(tenantID, row.ID, mt, row.CoverURL)
 	d := s.toMaterialDTO(row)
 	return &d, nil
 }
